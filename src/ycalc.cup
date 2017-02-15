@@ -1,0 +1,85 @@
+import java.util.*;
+import java_cup.runtime.*;
+import Tree.*;
+
+parser code {:
+    public Hashtable<String, Integer> variables
+        = new Hashtable<String, Integer>();
+
+    public ExpressionNode toExpressionNode(ExpressionNode left, TermPNode right) {
+
+        if(right == null || right.expression == null)
+            return left;
+
+        BinaryOperationNode node = right.operator == "+" ? new AdditionNode() : new SubstractionNode();
+        node.left = left;
+        node.right = right.expression;
+        return node;
+    }
+
+    public void report_error(String message, Object info) {
+   
+        StringBuilder m = new StringBuilder("Error");
+   
+        if (info instanceof java_cup.runtime.Symbol) {
+            java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
+
+            if (s.left >= 0) {
+                m.append(" in line "+(s.left+1));
+                if (s.right >= 0)
+                    m.append(", column "+(s.right+1));
+            }
+        }
+   
+        m.append(" : "+message);
+   
+        System.err.println(m);
+    }
+   
+    public void report_fatal_error(String message, Object info) {
+        report_error(message, info);
+        System.exit(1);
+    }
+:};
+   
+
+   
+terminal           SEMI, LPAREN, RPAREN, EQUALS;
+terminal Integer   NUMBER;
+terminal String    PLUS,MINUS,ID;
+
+non terminal EquationListNode ECUACIONES;
+non terminal EquationNode ECUACION;
+non terminal ExpressionNode EXPRESSION;
+non terminal ExpressionNode TERM;
+non terminal TermPNode TERMP;
+
+ECUACIONES ::= {: RESULT = new EquationListNode(); :}
+ ECUACION:ecuacion {: RESULT.addNode(ecuacion); :}
+ ECUACIONES:lista {: RESULT.add(lista); :}
+ | {: RESULT = new EquationListNode(); :};
+
+ECUACION ::= {: RESULT = new EquationNode(); :}
+             EXPRESSION:left {: RESULT.left = left; :}
+             EQUALS
+             EXPRESSION:right {: RESULT.right = right;  :}
+             SEMI;
+
+EXPRESSION ::= TERM:term {: RESULT = term; :}
+               TERMP:tp {: RESULT = toExpressionNode(term, tp);  :};
+
+TERM ::= NUMBER:n {: RESULT = new NumberNode(n); :}
+        | ID:i {: RESULT = new VariableNode(i); :}
+        | LPAREN EXPRESSION:e {: RESULT = e;  :} RPAREN;
+
+TERMP ::= {: RESULT = new TermPNode(); :}
+ PLUS:p {: RESULT.operator = p; :}
+ TERM:t {: RESULT.expression = t; :}
+ TERMP:tp {: RESULT.expression =  toExpressionNode(t, tp); :}
+
+ | {: RESULT = new TermPNode(); :}
+   MINUS:m {: RESULT.operator = m; :}
+   TERM:t {: RESULT.expression = t; :}
+   TERMP:tp {: RESULT.expression =  toExpressionNode(t, tp); :}
+ | {: RESULT = new TermPNode(); :};
+
